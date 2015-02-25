@@ -2,11 +2,101 @@
 
 namespace Scrutinizer\Tests\Functional;
 
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Finder\Finder;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
 class RunTest extends \PHPUnit_Framework_TestCase
 {
+    public function testJsonFormat()
+    {
+        $outputFile = tempnam(sys_get_temp_dir(), 'output-file');
+        $this->runCmd('run', array(__DIR__.'/Fixture/JsProject', '--output-file='.$outputFile, '--format=json'));
+
+        $content = file_get_contents($outputFile);
+        unlink($outputFile);
+
+       $this->assertEquals(<<<'OUTPUT'
+{
+    "files": [
+        {
+            "path": "some_file.js",
+            "comments": {
+                "1": [
+                    {
+                        "id": "jshint.W098",
+                        "message": "'foo' is defined but never used.",
+                        "params": {
+                            "a": "foo"
+                        },
+                        "tool": "js_hint"
+                    }
+                ],
+                "2": [
+                    {
+                        "id": "jshint.W098",
+                        "message": "'x' is defined but never used.",
+                        "params": {
+                            "a": "x"
+                        },
+                        "tool": "js_hint"
+                    }
+                ]
+            },
+            "metrics": [
+
+            ],
+            "line_attributes": [
+
+            ]
+        }
+    ],
+    "metrics": [
+
+    ],
+    "code_elements": [
+
+    ]
+}
+OUTPUT
+            ,
+            $content
+        );
+    }
+
+    public function testCache()
+    {
+        $cacheDir = tempnam(sys_get_temp_dir(), 'cache-dir');
+        unlink($cacheDir);
+        mkdir($cacheDir, 0777, true);
+
+        $this->runCmd('run', array(__DIR__.'/Fixture/JsProject', '--cache-dir='.$cacheDir));
+        $count = count(Finder::create()->in($cacheDir)->files());
+
+        $fs = new Filesystem();
+        $fs->remove($cacheDir);
+
+        $this->assertEquals(1, $count);
+    }
+
+    public function testProfiling()
+    {
+        $outputFile = tempnam(sys_get_temp_dir(), 'profile');
+        $proc = $this->runCmd('run', array(__DIR__.'/Fixture/JsProject', '--profiler-output-file='.$outputFile));
+        $profilerOutput = json_decode(file_get_contents($outputFile), true);
+        unlink($outputFile);
+
+        $this->assertInternalType('array', $profilerOutput);
+        $this->assertEquals(
+            array(
+                'start', 'pass.js_hint.start', 'pass.js_hint.end', 'pass.custom_commands.start', 'pass.custom_commands.end',
+                'output.start', 'output.end', 'stop'
+            ),
+            array_keys($profilerOutput)
+        );
+    }
+
     public function testRun()
     {
         $proc = $this->runCmd('run', array(__DIR__.'/Fixture/JsProject'));
@@ -15,7 +105,7 @@ class RunTest extends \PHPUnit_Framework_TestCase
 
         $expectedOutputArray = array(
           "Running analyzer \"js_hint\"...",
-          "\n\r    Files 1/1 [............................................................] 100%\n",
+          ".\n",
           "some_file.js",
           "============",
           "Line 1: 'foo' is defined but never used.",
@@ -35,8 +125,7 @@ class RunTest extends \PHPUnit_Framework_TestCase
 
         $expectedOutput = <<<OUTPUT
 Running analyzer "js_hint"...
-
-\r    Files 1/1 [............................................................] 100%
+.
 
 Errors:
  - JSHint config error when analyzing "some_file.js": Bad option: 'camelCase'.

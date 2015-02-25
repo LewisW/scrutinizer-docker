@@ -4,6 +4,8 @@ namespace Scrutinizer\Analyzer\Php;
 
 use PhpOption\Some;
 use Scrutinizer\Analyzer\AbstractFileAnalyzer;
+use Scrutinizer\Cache\CacheAwareInterface;
+use Scrutinizer\Cache\CacheAwareTrait;
 use Scrutinizer\Config\ConfigBuilder;
 use Scrutinizer\Model\Comment;
 use Scrutinizer\Model\File;
@@ -19,8 +21,10 @@ use Symfony\Component\Process\Process;
  * @display-name PHP Code Sniffer
  * @doc-path tools/php/code-sniffer/
  */
-class CsAnalyzer extends AbstractFileAnalyzer
+class CsAnalyzer extends AbstractFileAnalyzer implements CacheAwareInterface
 {
+    use CacheAwareTrait;
+
     public function getInfo()
     {
         return 'Runs PHP Code Sniffer';
@@ -1199,6 +1203,16 @@ class CsAnalyzer extends AbstractFileAnalyzer
 
     public function analyze(Project $project, File $file)
     {
+        $this->cache->withCache(
+            $file,
+            'result',
+            function() use ($project, $file) { return $this->runCodeSniffer($project, $file); },
+            function($result) use ($file) { $this->parseOutput($file, $result); }
+        );
+    }
+
+    private function runCodeSniffer(Project $project, File $file)
+    {
         $config = $project->getFileConfig($file);
         $cmd = $project->getGlobalConfig('command', new Some(__DIR__.'/../../../../vendor/bin/phpcs'));
 
@@ -1226,9 +1240,7 @@ class CsAnalyzer extends AbstractFileAnalyzer
         $outputFile = tempnam(sys_get_temp_dir(), 'phpcs');
         $cmd .= ' --report-checkstyle='.escapeshellarg($outputFile);
 
-        $tempFolder = sys_get_temp_dir() . '/' . uniqid('phpcs', true);
-        $inputFile = $tempFolder . '/' . $file->getPath();
-        mkdir(dirname($inputFile), 0777, true);
+        $inputFile = tempnam(sys_get_temp_dir(), 'phpcs');
         file_put_contents($inputFile, $file->getContent());
         $cmd .= ' '.escapeshellarg($inputFile);
 
@@ -1240,7 +1252,6 @@ class CsAnalyzer extends AbstractFileAnalyzer
 
         unlink($outputFile);
         unlink($inputFile);
-        shell_exec('rm -Rf ' . $tempFolder);
         if (null !== $standardsDir) {
             unlink($standardsDir.'/ruleset.xml');
             rmdir($standardsDir);
@@ -1250,6 +1261,11 @@ class CsAnalyzer extends AbstractFileAnalyzer
             throw new ProcessFailedException($proc);
         }
 
+        return $result;
+    }
+
+    private function parseOutput(File $file, $result)
+    {
         if (empty($result)) {
             return;
         }

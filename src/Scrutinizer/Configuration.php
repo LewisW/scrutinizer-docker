@@ -2,6 +2,7 @@
 
 namespace Scrutinizer;
 
+use Scrutinizer\BuildConditionDsl\DslParser;
 use Scrutinizer\Config\ConfigBuilder;
 use Scrutinizer\Analyzer\AnalyzerInterface;
 use Scrutinizer\Config\NodeBuilder;
@@ -150,6 +151,24 @@ class Configuration
                             return $v;
                         })
                     ->end()
+                ->end()
+
+                ->arrayNode('build_failure_conditions')
+                    ->useAttributeAsKey('build_failure_condition')
+                    ->performNoDeepMerging()
+                    ->validate()
+                        ->always(function(array $v) {
+                            if (class_exists('Scrutinizer\\BuildConditionDsl\\DslParser')) {
+                                $parser = new DslParser();
+                                foreach ($v as $cond) {
+                                    $parser->parse($cond, 'in "'.$cond.'"');
+                                }
+                            }
+
+                            return $v;
+                         })
+                    ->end()
+                    ->prototype('scalar')->end()
                 ->end()
             ->end()
         ;
