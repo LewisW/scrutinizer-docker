@@ -45,6 +45,11 @@ class CsAnalyzer extends AbstractFileAnalyzer
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
                 ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
+                ->end()
             ->end()
             ->perFileConfig()
                 ->addDefaultsIfNotSet()
@@ -1223,7 +1228,8 @@ class CsAnalyzer extends AbstractFileAnalyzer
         $cmd .= ' --tab-width='.$config['tab_width'];
         $cmd .= ' --encoding='.$config['encoding'];
 
-        $outputFile = tempnam(sys_get_temp_dir(), 'phpcs');
+        $configOutput = $project->getGlobalConfig('output_file');
+        $outputFile = $configOutput ?: tempnam(sys_get_temp_dir(), 'phpcs');
         $cmd .= ' --report-checkstyle='.escapeshellarg($outputFile);
 
         $tempFolder = sys_get_temp_dir() . '/' . uniqid('phpcs', true);
@@ -1238,7 +1244,10 @@ class CsAnalyzer extends AbstractFileAnalyzer
 
         $result = file_get_contents($outputFile);
 
-        unlink($outputFile);
+        if (!$configOutput) {
+            unlink($outputFile);
+        }
+
         unlink($inputFile);
         shell_exec('rm -Rf ' . $tempFolder);
         if (null !== $standardsDir) {

@@ -42,7 +42,9 @@ class CodeCoverageAnalyzer implements AnalyzerInterface, LoggerAwareInterface
             $this->logger->info('The "only_changesets" option for "php_code_coverage" was deprecated.'."\n");
         }
 
-        $outputFile = tempnam(sys_get_temp_dir(), 'php-code-coverage');
+        $configOutput = $project->getGlobalConfig('output_file');
+        $outputFile = $configOutput ?: tempnam(sys_get_temp_dir(), 'php-code-coverage');
+
         $testCommand = $project->getGlobalConfig('test_command').' --coverage-clover '.escapeshellarg($outputFile);
         $this->logger->info(sprintf('Running command "%s"...'."\n", $testCommand));
         $proc = new Process($testCommand, $project->getDir());
@@ -54,7 +56,10 @@ class CodeCoverageAnalyzer implements AnalyzerInterface, LoggerAwareInterface
         });
 
         $output = file_get_contents($outputFile);
-        unlink($outputFile);
+
+        if (!$configOutput) {
+            unlink($outputFile);
+        }
 
         if (empty($output)) {
             if ($proc->getExitCode() > 0) {
@@ -75,6 +80,11 @@ class CodeCoverageAnalyzer implements AnalyzerInterface, LoggerAwareInterface
                 ->scalarNode('test_command')
                     ->attribute('label', 'Command')
                     ->defaultValue('phpunit')
+                ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
                 ->end()
                 ->scalarNode('config_path')
                     ->attribute('label', 'Configuration')

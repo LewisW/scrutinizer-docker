@@ -172,6 +172,11 @@ class LocAnalyzer implements AnalyzerInterface, LoggerAwareInterface
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
                 ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
+                ->end()
                 ->arrayNode('names')
                     ->attribute('help_block', 'A single name pattern per line.')
                     ->defaultValue(array('*.php'))
@@ -193,7 +198,9 @@ class LocAnalyzer implements AnalyzerInterface, LoggerAwareInterface
      */
     public function scrutinize(Project $project)
     {
-        $outputFile = tempnam(sys_get_temp_dir(), 'phploc-output');
+        $configOutput = $project->getGlobalConfig('output_file');
+        $outputFile = $configOutput ?: tempnam(sys_get_temp_dir(), 'phploc-output');
+
         $command = $project->getGlobalConfig('command', new Some(__DIR__.'/../../../../vendor/bin/phploc'))
                         .' --progress --log-xml '.escapeshellarg($outputFile);
 
@@ -219,7 +226,11 @@ class LocAnalyzer implements AnalyzerInterface, LoggerAwareInterface
         });
 
         $output = file_get_contents($outputFile);
-        unlink($outputFile);
+
+        if (!$configOutput) {
+            unlink($outputFile);
+        }
+
         if (0 !== $proc->run()) {
             throw new ProcessFailedException($proc);
         }

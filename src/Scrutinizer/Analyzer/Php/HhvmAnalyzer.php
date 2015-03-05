@@ -76,16 +76,22 @@ class HhvmAnalyzer implements AnalyzerInterface, LoggerAwareInterface
 
     public function scrutinize(Project $project)
     {
+        $configOutput = $project->getGlobalConfig('output_directory');
+
         $inputListFile = $this->prepareInputListFile($project);
-        $outputDir = $this->prepareOutputDir();
+        $outputDir = $this->prepareOutputDir($configOutput);
 
         try {
             $this->runAnalyzer($project, $inputListFile, $outputDir);
             $this->processResult($project, $outputDir);
 
-            $this->cleanUp($inputListFile, $outputDir);
+            if (!$configOutput) {
+                $this->cleanUp($inputListFile, $outputDir);
+            }
         } catch (\Exception $ex) {
-            $this->cleanUp($inputListFile, $outputDir);
+            if (!$configOutput) {
+                $this->cleanUp($inputListFile, $outputDir);
+            }
 
             throw $ex;
         }
@@ -176,13 +182,14 @@ class HhvmAnalyzer implements AnalyzerInterface, LoggerAwareInterface
         return $cmd;
     }
 
-    private function prepareOutputDir()
+    private function prepareOutputDir($outputDir = null)
     {
-        $dir = tempnam(sys_get_temp_dir(), 'hhvm-output');
-        unlink($dir);
+        $dir = $outputDir ?: tempnam(sys_get_temp_dir(), 'hhvm-output');
 
-        if (false === @mkdir($dir, 0777, true)) {
-            throw new \RuntimeException(sprintf('Could not create output dir "%s".', $dir));
+        if (!file_exists($outputDir)) {
+            if (false === @mkdir($dir, 0777, true)) {
+                throw new \RuntimeException(sprintf('Could not create output dir "%s".', $dir));
+            }
         }
 
         return $dir;
@@ -223,6 +230,11 @@ class HhvmAnalyzer implements AnalyzerInterface, LoggerAwareInterface
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
                     ->defaultValue('hhvm')
+                ->end()
+                ->scalarNode('output_directory')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
                 ->end()
                 ->arrayNode('extensions')
                     ->prototype('scalar')->end()

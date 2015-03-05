@@ -50,6 +50,11 @@ class PDependAnalyzer implements AnalyzerInterface, LoggerAwareInterface
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
                 ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
+                ->end()
                 ->scalarNode('configuration_file')
                     ->attribute('show_in_editor', false)
                     ->attribute('help_inline', 'Path to a pdepend configuration file if available (relative to your project\'s root directory).')
@@ -90,7 +95,8 @@ class PDependAnalyzer implements AnalyzerInterface, LoggerAwareInterface
      */
     public function scrutinize(Project $project)
     {
-        $outputFile = tempnam(sys_get_temp_dir(), 'pdepend-output');
+        $configOutput = $project->getGlobalConfig('output_file');
+        $outputFile = $configOutput ?: tempnam(sys_get_temp_dir(), 'pdepend-output');
         $command = $project->getGlobalConfig('command', new Some(__DIR__.'/../../../../vendor/bin/pdepend'))
                         .' --summary-xml='.escapeshellarg($outputFile);
 
@@ -103,17 +109,27 @@ class PDependAnalyzer implements AnalyzerInterface, LoggerAwareInterface
             $command .= ' --suffix='.escapeshellarg(implode(',', $suffixes));
         }
 
+        $excludedDirs = (array)$project->getGlobalConfig('excluded_dirs');
         $filter = $project->getGlobalConfig('filter');
-        $filterFile = tempnam(sys_get_temp_dir(), 'pdepend-file-filter');
-        file_put_contents($filterFile, json_encode($filter));
-        $command .= ' --filter-file='.escapeshellarg($filterFile);
 
-        $excludedDirs = $project->getGlobalConfig('excluded_dirs');
+        if ( ! empty($filter['excluded_paths'])) {
+            $excludedDirs = array_unique(array_merge($excludedDirs, $filter['excluded_paths']));
+        }
+
         if ( ! empty($excludedDirs)) {
             $command .= ' --ignore='.escapeshellarg(implode(',', $excludedDirs));
         }
 
-        $proc = new Process($command.' '.$project->getDir());
+        if (!empty($filter['paths'])) {
+            // Scan the whitelisted directories
+            $command .= ' '. implode(' ', $filter['paths']);
+        }
+        else {
+            // Scan the current directory.
+            $command .= ' '. $project->getDir();
+        }
+
+        $proc = new Process($command);
         $proc->setTimeout(3600);
         $proc->setIdleTimeout(300);
         $proc->setPty(true);
@@ -122,8 +138,10 @@ class PDependAnalyzer implements AnalyzerInterface, LoggerAwareInterface
         });
 
         $output = file_get_contents($outputFile);
-        unlink($outputFile);
-        unlink($filterFile);
+
+        if (!$configOutput) {
+            unlink($outputFile);
+        }
 
         if (0 !== $proc->getExitCode()) {
             throw new ProcessFailedException($proc);
