@@ -30,6 +30,16 @@ just `open an issue <https://github.com/scrutinizer-ci/scrutinizer/issues/new>`_
     configuration
     code_rating_system
     api/index
+    refactoring/index
+
+.. toctree ::
+    :hidden:
+    :glob:
+
+    tools/javascript/index
+    tools/php/index
+    tools/puppet/index
+    tools/ruby/index
 
 General Analyses
 ~~~~~~~~~~~~~~~~
@@ -45,28 +55,29 @@ General Analyses
 
 Javascript
 ~~~~~~~~~~
-
-.. toctree ::
-    :glob:
-    :titlesonly:
-
-    tools/javascript/*/index
+- :doc:`tools/javascript/jshint/index`
 
 
 PHP
 ~~~
+- :doc:`tools/php/code-sniffer/index`
+- :doc:`tools/php/code-similarity-analyzer/index`
+- :doc:`tools/php/cs-fixer/index`
+- :doc:`tools/php/mess-detector/index`
+- :doc:`tools/php/pdepend/index`
+- :doc:`tools/php/php-analyzer/index`
+- :doc:`tools/php/security-advisory-checker/index`
 
-.. toctree ::
-    :glob:
-    :titlesonly:
 
-    tools/php/code-sniffer/index
-    tools/php/copy-paste-detector/index
-    tools/php/cs-fixer/index
-    tools/php/mess-detector/index
-    tools/php/pdepend/index
-    tools/php/php-analyzer/index
-    tools/php/security-advisory-checker/index
+Puppet
+~~~~~~
+- :doc:`tools/puppet/puppet-lint/index`
+
+Ruby
+~~~~
+- :doc:`tools/ruby/rubocop/index`
+- :doc:`tools/ruby/rails-best-practices/index`
+- :doc:`tools/ruby/flay/index`
 
 Configuration
 -------------

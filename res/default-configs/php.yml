@@ -1,8 +1,19 @@
 filter:
-    paths: [src/*]
-    excluded-paths: [ spec/*, vendor/*, features/* ]
+    excluded_paths: [vendor/*, tests/*, app/*, bin/*, library/*, features/*, spec/*]
 
 tools:
+    # Similar Code Detector
+    php_sim: true
+
+    # Metrics
+    php_pdepend:
+        configuration_file: ~
+        suffixes:
+            - php
+
+    # Some Metrics + Bug Detection/Auto-Fixes
+    php_analyzer: true
+    
     php_cs_fixer:
         config:
             level: psr2
@@ -21,7 +32,3 @@ tools:
                 - unusedcode
                 - controversial
                 - naming
-    php_pdepend:
-        configuration_file: ~
-        suffixes:
-            - php

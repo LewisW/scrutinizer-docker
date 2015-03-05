@@ -1,13 +1,13 @@
 language: php
 
 php:
-  - 5.4
   - 5.5
 
 before_script:
     - composer self-update
     - composer install
     - npm install
+    - bundle install --deployment
 
 script: phpunit --coverage-clover=coverage.clover
 

@@ -3,6 +3,7 @@
 namespace Scrutinizer\Analyzer\Php;
 
 use JMS\PhpManipulator\TokenStream;
+use PhpOption\Some;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Scrutinizer\Analyzer\AnalyzerInterface;
@@ -41,11 +42,12 @@ class CodeCoverageAnalyzer implements AnalyzerInterface, LoggerAwareInterface
         if ($project->getGlobalConfig('only_changesets')) {
             $this->logger->info('The "only_changesets" option for "php_code_coverage" was deprecated.'."\n");
         }
-
+        
         $configOutput = $project->getGlobalConfig('output_file');
         $outputFile = $configOutput ?: tempnam(sys_get_temp_dir(), 'php-code-coverage');
-
-        $testCommand = $project->getGlobalConfig('test_command').' --coverage-clover '.escapeshellarg($outputFile);
+        
+        $testCommand = $project->getGlobalConfig('test_command', new Some(__DIR__.'/../../../../vendor/bin/phpunit'));
+        $testCommand .= ' --coverage-clover '.escapeshellarg($outputFile);
         $this->logger->info(sprintf('Running command "%s"...'."\n", $testCommand));
         $proc = new Process($testCommand, $project->getDir());
         $proc->setTimeout(1800);
@@ -78,8 +80,7 @@ class CodeCoverageAnalyzer implements AnalyzerInterface, LoggerAwareInterface
             ->info('Collects code coverage information about the changeset.')
             ->globalConfig()
                 ->scalarNode('test_command')
-                    ->attribute('label', 'Command')
-                    ->defaultValue('phpunit')
+                    ->attribute('show_in_editor', false)
                 ->end()
                 ->scalarNode('output_file')
                     ->attribute('label', 'Output file')
