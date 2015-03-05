@@ -7,13 +7,14 @@ ENV DEBCONF_NONINTERACTIVE_SEEN true
 
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl \
-        # Install PHP tools
-        php5-cli \
-        php5-curl \
-        nodejs-legacy \
-        npm \
-        git
+    ca-certificates \
+    curl \
+    # Install PHP tools
+    php5-cli \
+    php5-curl \
+    nodejs-legacy \
+    npm \
+    git
 
 # Install composer
 RUN curl https://getcomposer.org/installer | php \
