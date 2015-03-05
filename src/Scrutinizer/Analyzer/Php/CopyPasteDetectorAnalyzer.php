@@ -40,6 +40,11 @@ class CopyPasteDetectorAnalyzer implements AnalyzerInterface, LoggerAwareInterfa
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
                 ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
+                ->end()
                 ->arrayNode('excluded_dirs')
                     ->info('A list of excluded directories.')
                     ->attribute('label', 'Excluded Directories')
@@ -77,7 +82,7 @@ class CopyPasteDetectorAnalyzer implements AnalyzerInterface, LoggerAwareInterfa
         ;
     }
 
-    private function buildCommand(Project $project, $outputFile, $filterFile)
+    private function buildCommand(Project $project, $outputFile)
     {
         $command = sprintf(
             '%s --log-pmd %s --min-lines %d --min-tokens %d --names %s',
@@ -88,29 +93,37 @@ class CopyPasteDetectorAnalyzer implements AnalyzerInterface, LoggerAwareInterfa
             escapeshellarg(implode(',', $project->getGlobalConfig('names')))
         );
 
-        $excludedDirs = $project->getGlobalConfig('excluded_dirs');
+        $excludedDirs = (array)$project->getGlobalConfig('excluded_dirs');
+        $filter = $project->getGlobalConfig('filter');
+
+        if ( ! empty($filter['excluded_paths'])) {
+            $excludedDirs = array_unique(array_merge($excludedDirs, $filter['excluded_paths']));
+        }
+
         if ( ! empty($excludedDirs)) {
             foreach ($excludedDirs as $dir) {
                 $command .= sprintf(' --exclude %s' , escapeshellarg($dir));
             }
         }
 
-        $filter = $project->getGlobalConfig('filter');
-        file_put_contents($filterFile, json_encode($filter));
-        $command .= ' --filter-file '.escapeshellarg($filterFile);
-
-        // Scan the current directory.
-        $command .= ' '.$project->getDir();
+        if (!empty($filter['paths'])) {
+            // Scan the whitelisted directories
+            $command .= ' '. implode(' ', $filter['paths']);
+        }
+        else {
+            // Scan the current directory.
+            $command .= ' '. $project->getDir();
+        }
 
         return $command;
     }
 
     public function scrutinize(Project $project)
     {
-        $outputFile = tempnam(sys_get_temp_dir(), 'phpcpd');
-        $filterFile = tempnam(sys_get_temp_dir(), 'phpcpd-filter');
+        $configOutput = $project->getGlobalConfig('output_file');
+        $outputFile = $configOutput ?: tempnam(sys_get_temp_dir(), 'phpcpd');
 
-        $command = $this->buildCommand($project, $outputFile, $filterFile);
+        $command = $this->buildCommand($project, $outputFile);
 
         $this->logger->info('$ '.$command."\n");
         $proc = new Process($command, $project->getDir());
@@ -122,8 +135,10 @@ class CopyPasteDetectorAnalyzer implements AnalyzerInterface, LoggerAwareInterfa
         });
 
         $result = file_get_contents($outputFile);
-        unlink($outputFile);
-        unlink($filterFile);
+
+        if (!$configOutput) {
+            unlink($outputFile);
+        }
 
         if (empty($result)) {
             if (false !== strpos($proc->getOutput(), 'No files found to scan')) {

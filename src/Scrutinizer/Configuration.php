@@ -11,6 +11,7 @@ use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Lays out the structure of the configuration.
@@ -44,9 +45,16 @@ class Configuration
 
     public function process(array $values)
     {
-        $processor = new Processor();
+        if (!empty($values['imports'])) {
+            $configs = array_map(function($imports) {
+                $yaml =  Yaml::parse($this->configRegistry->getConfig($imports)) ?: array();
 
-        return $processor->process($this->getTree(), array($values));
+                return $yaml;
+            }, $values['imports']);
+        }
+
+        $configs[] = $values;
+        return $this->processConfigs($configs);
     }
 
     /**

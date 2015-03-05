@@ -1,12 +1,34 @@
 filter:
-    excluded_paths: [vendor/*, tests/*, app/*, bin/*, library/*]
+    excluded_paths: [vendor/*, tests/*, app/*, bin/*, library/*, features/*, spec/*]
 
 tools:
     # Similar Code Detector
     php_sim: true
 
     # Metrics
-    php_pdepend: true
+    php_pdepend:
+        configuration_file: ~
+        suffixes:
+            - php
 
     # Some Metrics + Bug Detection/Auto-Fixes
     php_analyzer: true
+    
+    php_cs_fixer:
+        config:
+            level: psr2
+    php_code_sniffer:
+        config:
+            standard: PSR2
+        extensions:
+            - php
+    php_mess_detector:
+        extensions:
+            - php
+        config:
+            rulesets:
+                - codesize
+                - design
+                - unusedcode
+                - controversial
+                - naming

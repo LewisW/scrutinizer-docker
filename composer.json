@@ -33,6 +33,8 @@
     },
 
     "require-dev": {
+        "h4cc/phpqatools": "*",
+        "scrutinizer/php-analyzer": "dev-legacy",
         "phpmd/phpmd": "dev-master",
         "pdepend/pdepend": "dev-master",
         "squizlabs/php_codesniffer": "dev-master",

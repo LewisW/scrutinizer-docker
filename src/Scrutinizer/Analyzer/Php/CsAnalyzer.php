@@ -49,6 +49,11 @@ class CsAnalyzer extends AbstractFileAnalyzer implements CacheAwareInterface
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
                 ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
+                ->end()
             ->end()
             ->perFileConfig()
                 ->addDefaultsIfNotSet()
@@ -1237,7 +1242,8 @@ class CsAnalyzer extends AbstractFileAnalyzer implements CacheAwareInterface
         $cmd .= ' --tab-width='.$config['tab_width'];
         $cmd .= ' --encoding='.$config['encoding'];
 
-        $outputFile = tempnam(sys_get_temp_dir(), 'phpcs');
+        $configOutput = $project->getGlobalConfig('output_file');
+        $outputFile = $configOutput ?: tempnam(sys_get_temp_dir(), 'phpcs');
         $cmd .= ' --report-checkstyle='.escapeshellarg($outputFile);
 
         $inputFile = tempnam(sys_get_temp_dir(), 'phpcs');
@@ -1250,7 +1256,10 @@ class CsAnalyzer extends AbstractFileAnalyzer implements CacheAwareInterface
 
         $result = file_get_contents($outputFile);
 
-        unlink($outputFile);
+        if (!$configOutput) {
+            unlink($outputFile);
+        }
+
         unlink($inputFile);
         if (null !== $standardsDir) {
             unlink($standardsDir.'/ruleset.xml');

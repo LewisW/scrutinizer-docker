@@ -60,6 +60,11 @@ class JsHintAnalyzer implements AnalyzerInterface, LoggerAwareInterface, CacheAw
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
                 ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
+                ->end()
                 ->booleanNode('use_native_config')
                     ->info('Whether to use JSHint\'s native config file, .jshintrc.')
                     ->attribute('label', ' ')
@@ -133,7 +138,14 @@ class JsHintAnalyzer implements AnalyzerInterface, LoggerAwareInterface, CacheAw
             throw new ProcessFailedException($proc);
         }
 
-        return $proc->getOutput();
+        $output = $proc->getOutput();
+        $configOutput = $project->getGlobalConfig('output_file');
+
+        if ($configOutput) {
+            file_put_contents($configOutput, $output);
+        }
+        
+        return $output;
     }
 
     private function parseOutput(File $file, $output)

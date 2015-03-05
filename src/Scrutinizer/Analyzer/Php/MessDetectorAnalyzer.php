@@ -26,6 +26,7 @@ class MessDetectorAnalyzer extends AbstractFileAnalyzer implements CacheAwareInt
     use CacheAwareTrait;
 
     private $tmpCwdDir;
+    private $rootDir;
 
     public function getName()
     {
@@ -56,6 +57,11 @@ class MessDetectorAnalyzer extends AbstractFileAnalyzer implements CacheAwareInt
             ->globalConfig()
                 ->scalarNode('command')
                     ->attribute('show_in_editor', false)
+                ->end()
+                ->scalarNode('output_file')
+                    ->attribute('label', 'Output file')
+                    ->attribute('help_inline', 'Path to save the raw output.')
+                    ->defaultNull()
                 ->end()
             ->end()
             ->perFileConfig('array')
@@ -326,7 +332,7 @@ class MessDetectorAnalyzer extends AbstractFileAnalyzer implements CacheAwareInt
     {
         // We temporarily switch the working directory to workaround a bug in PHPMD which causes weird configuration
         // errors, see https://github.com/phpmd/phpmd/issues/47
-        $previousCwd = $this->useEmptyWorkingDir();
+        $previousCwd = $this->rootDir = $this->useEmptyWorkingDir();
 
         try {
             parent::scrutinize($project);
@@ -391,6 +397,12 @@ class MessDetectorAnalyzer extends AbstractFileAnalyzer implements CacheAwareInt
 
         $output = $proc->getOutput();
         $output = str_replace($inputFile, $file->getPath(), $output);
+
+        $configOutput = $project->getGlobalConfig('output_file');
+
+        if ($configOutput) {
+            file_put_contents($this->rootDir . DIRECTORY_SEPARATOR . $configOutput, $output);
+        }
 
         return $output;
     }
