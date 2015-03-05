@@ -5,8 +5,7 @@ MAINTAINER Lewis Wright <lewis@allwrightythen.com>
 ENV DEBIAN_FRONTEND noninteractive
 ENV DEBCONF_NONINTERACTIVE_SEEN true
 
-# Install composer & scrutinizer
-COPY . /etc/scrutinizer/
+# Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         # Install PHP tools
@@ -16,8 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         npm \
         git
 
+# Install composer
 RUN curl https://getcomposer.org/installer | php \
  && mv composer.phar /usr/local/bin/composer
+ 
+# Copy over the files
+COPY . /etc/scrutinizer/
 
 # Install scrutinizer
 RUN cd /etc/scrutinizer \
@@ -25,4 +28,5 @@ RUN cd /etc/scrutinizer \
  && npm install \
  && ln -s /etc/scrutinizer/bin/scrutinizer /usr/local/bin/scrutinizer
 
+# Clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
